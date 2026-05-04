@@ -1,0 +1,423 @@
+{
+  "name": "NTF 06 - Review Monitoring Alert",
+  "tags": [
+    {
+      "name": "NTF-Playbook"
+    }
+  ],
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "nodes": [
+    {
+      "id": "sticky-readme",
+      "name": "README",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -520
+      ],
+      "parameters": {
+        "content": "## NTF 06 - Review Monitoring Alert\n\n**Trigger:** Schedule, every 6 hours\n\n**Flow:**\n1. Schedule trigger fires\n2. Search Google for recent reviews via SerpAPI\n3. Also searches Reddit for brand mentions\n4. Claude classifies sentiment for each result\n5. Negative/mixed results trigger Slack alert with drafted response\n6. All results logged to Google Sheets\n\n**Setup:**\n- Add your SerpAPI key (free tier: 100 searches/month, see SETUP.md for cadence math)\n- Set BRAND_NAME and REVIEW_KEYWORDS in the Config node\n- Set your Slack channel ID\n- Connect Google Sheets credential and set spreadsheet ID",
+        "height": 360,
+        "width": 540,
+        "color": 6
+      }
+    },
+    {
+      "id": "schedule-trigger",
+      "name": "Every 6 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "config",
+      "name": "Config Brand Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "brand_name",
+              "name": "brand_name",
+              "value": "YOUR_BRAND_NAME",
+              "type": "string"
+            },
+            {
+              "id": "review_query",
+              "name": "review_query",
+              "value": "=\"\\\"\" + $json.brand_name + \"\\\" review site:google.com OR site:trustpilot.com OR site:g2.com\"",
+              "type": "expression"
+            },
+            {
+              "id": "reddit_query",
+              "name": "reddit_query",
+              "value": "={{ $json.brand_name + ' site:reddit.com' }}",
+              "type": "expression"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "serp-reviews",
+      "name": "SerpAPI Review Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        -120
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://serpapi.com/search",
+        "qs": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $('Config Brand Settings').item.json.review_query }}"
+            },
+            {
+              "name": "api_key",
+              "value": "YOUR_SERPAPI_KEY"
+            },
+            {
+              "name": "num",
+              "value": "10"
+            },
+            {
+              "name": "tbs",
+              "value": "qdr:d"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "serp-reddit",
+      "name": "SerpAPI Reddit Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        80
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://serpapi.com/search",
+        "qs": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $('Config Brand Settings').item.json.reddit_query }}"
+            },
+            {
+              "name": "api_key",
+              "value": "YOUR_SERPAPI_KEY"
+            },
+            {
+              "name": "num",
+              "value": "5"
+            },
+            {
+              "name": "tbs",
+              "value": "qdr:d"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "merge-results",
+      "name": "Merge Search Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const reviews = $('SerpAPI Review Search').first().json.organic_results || [];\nconst reddit = $('SerpAPI Reddit Search').first().json.organic_results || [];\nconst all = [...reviews, ...reddit].map(r => ({\n  title: r.title || '',\n  snippet: r.snippet || '',\n  link: r.link || '',\n  source: r.displayed_link || r.link || ''\n}));\nreturn all.map(r => ({ json: r }));"
+      }
+    },
+    {
+      "id": "claude-llm",
+      "name": "Claude Sentiment Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "model": "claude-haiku-4-5-20251001",
+        "options": {
+          "maxTokens": 500
+        }
+      },
+      "credentials": {
+        "anthropicApi": {
+          "name": "Anthropic"
+        }
+      }
+    },
+    {
+      "id": "sentiment-chain",
+      "name": "Classify Sentiment",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=Classify the sentiment of this review/mention and draft a response if needed.\n\nTitle: {{ $json.title }}\nSnippet: {{ $json.snippet }}\nSource: {{ $json.source }}\n\nReturn JSON with:\n- sentiment: \"positive\" | \"neutral\" | \"negative\" | \"mixed\"\n- severity: \"low\" | \"medium\" | \"high\" (only relevant for negative)\n- summary: one sentence describing what is said\n- draft_response: a professional response draft (2-3 sentences) if sentiment is negative or mixed, otherwise null\n\nReturn only valid JSON. No markdown fencing."
+      }
+    },
+    {
+      "id": "parse-sentiment",
+      "name": "Parse Sentiment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.text || '{}';\nlet parsed = {};\ntry {\n  parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());\n} catch(e) {\n  parsed = { sentiment: 'neutral', severity: 'low', summary: raw, draft_response: null };\n}\nconst prev = $input.first().json;\nreturn [{ json: { ...prev, ...parsed, checked_at: new Date().toISOString() } }];"
+      }
+    },
+    {
+      "id": "filter-negative",
+      "name": "Filter Negative Only",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 1,
+      "position": [
+        1320,
+        -120
+      ],
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "sentiment-filter",
+              "leftValue": "={{ $json.sentiment }}",
+              "rightValue": "positive",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "slack-alert",
+      "name": "Slack Review Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1540,
+        -120
+      ],
+      "parameters": {
+        "operation": "post",
+        "channel": "YOUR_SLACK_CHANNEL_ID",
+        "text": "=*Review Alert: {{ $json.sentiment | upper }} ({{ $json.severity }})*\n*Source:* {{ $json.source }}\n*Summary:* {{ $json.summary }}\n*Link:* {{ $json.link }}\n\n{{ $json.draft_response ? '*Draft Response:*\\n' + $json.draft_response : '' }}"
+      },
+      "credentials": {
+        "slackApi": {
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "sheets-log",
+      "name": "Log to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1320,
+        80
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Reviews",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Checked At": "={{ $json.checked_at }}",
+            "Source": "={{ $json.source }}",
+            "Title": "={{ $json.title }}",
+            "Sentiment": "={{ $json.sentiment }}",
+            "Severity": "={{ $json.severity }}",
+            "Summary": "={{ $json.summary }}",
+            "Link": "={{ $json.link }}"
+          }
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 6 Hours": {
+      "main": [
+        [
+          {
+            "node": "Config Brand Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config Brand Settings": {
+      "main": [
+        [
+          {
+            "node": "SerpAPI Review Search",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "SerpAPI Reddit Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SerpAPI Review Search": {
+      "main": [
+        [
+          {
+            "node": "Merge Search Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SerpAPI Reddit Search": {
+      "main": [
+        [
+          {
+            "node": "Merge Search Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Search Results": {
+      "main": [
+        [
+          {
+            "node": "Classify Sentiment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Sentiment Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Classify Sentiment",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Sentiment": {
+      "main": [
+        [
+          {
+            "node": "Parse Sentiment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Sentiment": {
+      "main": [
+        [
+          {
+            "node": "Filter Negative Only",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Negative Only": {
+      "main": [
+        [
+          {
+            "node": "Slack Review Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
