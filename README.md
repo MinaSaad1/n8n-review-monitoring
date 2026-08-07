@@ -14,7 +14,7 @@
 
 - Runs on a schedule (default: every 6 hours) and never misses
 - Hits Google through SerpAPI with two queries: a review query (Google, Trustpilot, G2) and a Reddit mention query
-- Merges both result sets, then sends each result to Claude Haiku 4.5 with a prompt that returns sentiment, severity, a one-line summary, and a draft response as JSON
+- Merges both result sets, then sends each result to Claude Sonnet 4.6 with a prompt that returns sentiment, severity, a one-line summary, and a draft response as JSON
 - Logs every result to Google Sheets (or Airtable, your choice) for trend analysis
 - For anything not classified `positive`, fires a Slack alert with the source, summary, link, and the drafted response
 
@@ -36,7 +36,7 @@ SerpAPI Review Search   SerpAPI Reddit Search
                  │
                  ▼
         Classify Sentiment    ─── LangChain LLM chain
-                 │              uses Claude Haiku 4.5, returns JSON
+                 │              uses Claude Sonnet 4.6, returns JSON
                  ▼
         Parse Sentiment       ─── Code node, JSON.parse + merge
                  │
@@ -56,7 +56,7 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full component breakd
 
 - **n8n** >= 1.78 (cloud or self-hosted)
 - **SerpAPI account**. Free tier is 100 searches/month, which is not enough for continuous monitoring. Read [`docs/SETUP.md`](docs/SETUP.md) before activating, the cadence math matters.
-- **Anthropic API key** for Claude Haiku 4.5 (model id: `claude-haiku-4-5-20251001`)
+- **Anthropic API key** for Claude Sonnet 4.6 (model id: `claude-sonnet-4-6`)
 - **Slack workspace** with a bot user and a channel for review alerts
 - **Google Sheets** (or Airtable, swap the node) for the review log
 - **A brand name** distinctive enough that Google search for it returns reviews about your product, not random homonyms

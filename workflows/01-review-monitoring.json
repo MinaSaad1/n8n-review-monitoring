@@ -84,7 +84,7 @@
       "id": "serp-reviews",
       "name": "SerpAPI Review Search",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "typeVersion": 4.5,
       "position": [
         440,
         -120
@@ -92,15 +92,20 @@
       "parameters": {
         "method": "GET",
         "url": "https://serpapi.com/search",
-        "qs": {
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        },
+        "sendQuery": true,
+        "specifyQuery": "keypair",
+        "queryParameters": {
           "parameters": [
             {
               "name": "q",
               "value": "={{ $('Config Brand Settings').item.json.review_query }}"
-            },
-            {
-              "name": "api_key",
-              "value": "YOUR_SERPAPI_KEY"
             },
             {
               "name": "num",
@@ -112,12 +117,12 @@
             }
           ]
         },
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "json"
-            }
-          }
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth"
+      },
+      "credentials": {
+        "httpQueryAuth": {
+          "name": "SerpAPI"
         }
       }
     },
@@ -125,7 +130,7 @@
       "id": "serp-reddit",
       "name": "SerpAPI Reddit Search",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "typeVersion": 4.5,
       "position": [
         440,
         80
@@ -133,15 +138,20 @@
       "parameters": {
         "method": "GET",
         "url": "https://serpapi.com/search",
-        "qs": {
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        },
+        "sendQuery": true,
+        "specifyQuery": "keypair",
+        "queryParameters": {
           "parameters": [
             {
               "name": "q",
               "value": "={{ $('Config Brand Settings').item.json.reddit_query }}"
-            },
-            {
-              "name": "api_key",
-              "value": "YOUR_SERPAPI_KEY"
             },
             {
               "name": "num",
@@ -153,12 +163,12 @@
             }
           ]
         },
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "json"
-            }
-          }
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth"
+      },
+      "credentials": {
+        "httpQueryAuth": {
+          "name": "SerpAPI"
         }
       }
     },
@@ -179,13 +189,18 @@
       "id": "claude-llm",
       "name": "Claude Sentiment Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
-      "typeVersion": 1.3,
+      "typeVersion": 1.5,
       "position": [
         880,
         0
       ],
       "parameters": {
-        "model": "claude-haiku-4-5-20251001",
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "claude-sonnet-4-6",
+          "cachedResultName": "Claude Sonnet 4.6"
+        },
         "options": {
           "maxTokens": 500
         }
@@ -227,7 +242,7 @@
       "id": "filter-negative",
       "name": "Filter Negative Only",
       "type": "n8n-nodes-base.filter",
-      "typeVersion": 1,
+      "typeVersion": 2.3,
       "position": [
         1320,
         -120
@@ -244,7 +259,14 @@
                 "operation": "notEquals"
               }
             }
-          ]
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "combinator": "and"
         }
       }
     },
@@ -252,15 +274,21 @@
       "id": "slack-alert",
       "name": "Slack Review Alert",
       "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.3,
+      "typeVersion": 2.5,
       "position": [
         1540,
         -120
       ],
       "parameters": {
         "operation": "post",
-        "channel": "YOUR_SLACK_CHANNEL_ID",
-        "text": "=*Review Alert: {{ $json.sentiment | upper }} ({{ $json.severity }})*\n*Source:* {{ $json.source }}\n*Summary:* {{ $json.summary }}\n*Link:* {{ $json.link }}\n\n{{ $json.draft_response ? '*Draft Response:*\\n' + $json.draft_response : '' }}"
+        "text": "=*Review Alert: {{ $json.sentiment.toUpperCase() }} ({{ $json.severity }})*\n*Source:* {{ $json.source }}\n*Summary:* {{ $json.summary }}\n*Link:* {{ $json.link }}\n\n{{ $json.draft_response ? '*Draft Response:*\\n' + $json.draft_response : '' }}",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "YOUR_SLACK_CHANNEL"
+        },
+        "resource": "message"
       },
       "credentials": {
         "slackApi": {

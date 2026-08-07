@@ -18,7 +18,7 @@ SerpAPI Review Search    SerpAPI Reddit Search
                    │
                    ▼
          Classify Sentiment   ─── LangChain LLM chain
-                   │              Claude Haiku 4.5, JSON output
+                   │              Claude Sonnet 4.6, JSON output
                    ▼
          Parse Sentiment      ─── Code node, JSON.parse + merge
                    │
@@ -60,14 +60,17 @@ The merge happens in a Code node rather than n8n's Merge node because we don't w
 
 ### Classify Sentiment (`chainLlm` + `lmChatAnthropic`)
 
-A LangChain LLM chain with Claude Haiku 4.5 (`claude-haiku-4-5-20251001`) wired in as the model. The prompt asks for a single JSON object containing:
+A LangChain LLM chain with Claude Sonnet 4.6 (`claude-sonnet-4-6`) wired in as the model. The prompt asks for a single JSON object containing:
 
 - `sentiment` (positive / neutral / negative / mixed)
 - `severity` (low / medium / high, only meaningful for negative)
 - `summary` (one sentence)
 - `draft_response` (2 to 3 sentences for negative or mixed, otherwise null)
 
-`maxTokens` is capped at 500. That's enough for a short draft and the surrounding metadata, but small enough to keep cost predictable. Per-result cost on Haiku 4.5 is roughly 0.001 USD, so a typical day at 6-hour cadence and ~15 results per cycle is well under 1 USD/month.
+> **Note**: cost and latency figures below were measured on Claude Haiku 4.5. The workflow now ships with Claude Sonnet 4.6 as the default, which is more capable and more expensive. Select a Haiku model in the node's model dropdown to get back to the numbers quoted here.
+
+
+`maxTokens` is capped at 500. That's enough for a short draft and the surrounding metadata, but small enough to keep cost predictable. Per-result cost on Sonnet 4.6 is roughly 0.001 USD, so a typical day at 6-hour cadence and ~15 results per cycle is well under 1 USD/month.
 
 ### Parse Sentiment (`Code` node)
 
@@ -107,7 +110,7 @@ The SerpAPI free tier is 100 searches/month. At 2 searches/cycle, that's 50 cycl
 
 ### Why Claude Haiku and not Sonnet
 
-Sentiment classification on a single search snippet is the single easiest task a language model can do, and Haiku 4.5 nails it for ~10x lower cost than Sonnet. The drafting subtask is a 2-3 sentence response, which Haiku also handles fine. If your brand voice is unusually distinctive or your responses need to reference customer-specific context (not present in the snippet), upgrade to Sonnet 4.6 in the same node, the rest of the workflow doesn't change.
+Sentiment classification on a single search snippet is the single easiest task a language model can do, and Sonnet 4.6 nails it for ~10x lower cost than Sonnet. The drafting subtask is a 2-3 sentence response, which Haiku also handles fine. If your brand voice is unusually distinctive or your responses need to reference customer-specific context (not present in the snippet), upgrade to Sonnet 4.6 in the same node, the rest of the workflow doesn't change.
 
 ### Why the draft response goes to Slack, not auto-posted
 
@@ -127,7 +130,7 @@ The two HTTP Request nodes both fan out from `Config Brand Settings`. n8n execut
 | Config Brand Settings | <50 ms |
 | SerpAPI calls (in parallel) | 1 to 3 sec total |
 | Merge Search Results | <100 ms |
-| Classify Sentiment per result (Haiku 4.5, ~500 tokens out) | 1 to 2 sec per result |
+| Classify Sentiment per result (Sonnet 4.6, ~500 tokens out) | 1 to 2 sec per result |
 | Parse Sentiment | <50 ms |
 | Slack Review Alert per negative | 200 to 500 ms |
 | Log to Google Sheets per row | 200 to 800 ms |
