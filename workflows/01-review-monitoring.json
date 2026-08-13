@@ -191,8 +191,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
       "typeVersion": 1.5,
       "position": [
-        880,
-        0
+        952,
+        190
       ],
       "parameters": {
         "model": {
@@ -231,7 +231,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1100,
+        1228,
         0
       ],
       "parameters": {
@@ -244,7 +244,7 @@
       "type": "n8n-nodes-base.filter",
       "typeVersion": 2.3,
       "position": [
-        1320,
+        1448,
         -120
       ],
       "parameters": {
@@ -276,7 +276,7 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.5,
       "position": [
-        1540,
+        1668,
         -120
       ],
       "parameters": {
@@ -302,7 +302,7 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
-        1320,
+        1448,
         80
       ],
       "parameters": {
