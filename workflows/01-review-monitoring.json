@@ -1,8 +1,8 @@
 {
-  "name": "NTF 06 - Review Monitoring Alert",
+  "name": "Review Monitoring Alert",
   "tags": [
     {
-      "name": "NTF-Playbook"
+      "name": "n8n-ai-agents"
     }
   ],
   "settings": {
@@ -19,7 +19,7 @@
         -520
       ],
       "parameters": {
-        "content": "## NTF 06 - Review Monitoring Alert\n\n**Trigger:** Schedule, every 6 hours\n\n**Flow:**\n1. Schedule trigger fires\n2. Search Google for recent reviews via SerpAPI\n3. Also searches Reddit for brand mentions\n4. Claude classifies sentiment for each result\n5. Negative/mixed results trigger Slack alert with drafted response\n6. All results logged to Google Sheets\n\n**Setup:**\n- Add your SerpAPI key (free tier: 100 searches/month, see SETUP.md for cadence math)\n- Set BRAND_NAME and REVIEW_KEYWORDS in the Config node\n- Set your Slack channel ID\n- Connect Google Sheets credential and set spreadsheet ID",
+        "content": "## Review Monitoring Alert\n\n**Trigger:** Schedule, every 6 hours\n\n**Flow:**\n1. Schedule trigger fires\n2. Search Google for recent reviews via SerpAPI\n3. Also searches Reddit for brand mentions\n4. Claude classifies sentiment for each result\n5. Negative/mixed results trigger Slack alert with drafted response\n6. All results logged to Google Sheets\n\n**Setup:**\n- Add your SerpAPI key (free tier: 100 searches/month, see SETUP.md for cadence math)\n- Set BRAND_NAME and REVIEW_KEYWORDS in the Config node\n- Set your Slack channel ID\n- Connect Google Sheets credential and set spreadsheet ID",
         "height": 360,
         "width": 540,
         "color": 6
